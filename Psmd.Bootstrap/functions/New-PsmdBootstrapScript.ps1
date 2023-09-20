@@ -52,7 +52,7 @@
 		$encoded = [convert]::ToBase64String($bytes)
 		$bytes = $null
 
-		$bootstrapCode = [System.IO.File]::ReadAllText("$script:ModuleRoot\internal\content\bootstrap.ps1")
+		$bootstrapCode = [System.IO.File]::ReadAllText("$script:ModuleRoot\content\bootstrap.ps1")
 		$bootstrapCode = $bootstrapCode -replace '%data%', $encoded
 		$encoded = $null
 		Remove-PSFTempItem -Name bootstrapzip -ModuleName JEAnalyzer
