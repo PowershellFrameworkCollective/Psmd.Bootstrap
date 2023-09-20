@@ -1,4 +1,4 @@
-﻿function New-BootstrapScript {
+﻿function New-PsmdBootstrapScript {
 	<#
 	.SYNOPSIS
 		Take all contents of a folder and embed them into a bootstrap scriptfile.
@@ -23,7 +23,7 @@
 		If a folder is specified, it will create a "bootstrap.ps1" file in that folder.
 	
 	.EXAMPLE
-		PS C:\> New-BootstrapScript -Path . -OutPath C:\temp
+		PS C:\> New-PsmdBootstrapScript -Path . -OutPath C:\temp
 		
 		Takes all items in the current folder, wraps them into a bootstrap script and writes that single file to C:\temp\bootstrap.ps1
 	#>
