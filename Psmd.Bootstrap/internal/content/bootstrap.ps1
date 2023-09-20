@@ -48,7 +48,7 @@ Expand-Archive -Path $tempFile -DestinationPath $tempFolder.FullName
 
 $launchPath = Join-Path -Path $tempFolder.FullName -ChildPath run.ps1
 try {
-	$psPath = (Get-Process -id $pid).Path 
+	$psPath = (Get-Process -id $pid).Path
 	if ($psPath -notmatch 'powershell.exe$|pwsh.exe$') {
 		if ($PSVersionTable.PSVersion.Major -gt 5) { $psPath = 'pwsh.exe' }
 		else { $psPath = 'powershell.exe' }
