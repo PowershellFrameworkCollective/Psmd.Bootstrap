@@ -38,16 +38,27 @@
 		[Parameter(Mandatory = $true)]
 		[PsfValidateScript('PSFramework.Validate.FSPath.FileOrParent', ErrorString = 'PSFramework.Validate.FSPath.FileOrParent')]
 		[string]
-		$OutPath
+		$OutPath,
+
+		[PsfValidatePattern('\.ps1$', ErrorMessage = 'The Start Script must be a ps1 file!')]
+		[string]
+		$StartScript = 'run.ps1'
 	)
 	process {
-		$runFile = Join-Path -Path $Path -ChildPath 'run.ps1'
+		$runFile = Join-Path -Path $Path -ChildPath $StartScript
 		if (-not (Test-Path -Path $runFile)) {
-			Stop-PSFFunction -Message "Invalid package! No run.ps1 found in source folder $Path." -Target $Path -EnableException $true -Cmdlet $PSCmdlet -Category InvalidData
+			Stop-PSFFunction -Message "Invalid package! No $StartScript found in source folder $Path." -Target $Path -EnableException $true -Cmdlet $PSCmdlet -Category InvalidData
 		}
 
-		$tempFile = New-PSFTempFile -Name bootstrapzip -Extension zip -ModuleName JEAnalyzer
-		Compress-Archive -Path (Join-Path -Path $Path -ChildPath '*') -DestinationPath $tempFile -Force
+		#region Generate Bootstrap Payload
+		$tempFile = New-PSFTempFile -Name bootstrapzip -Extension zip -ModuleName Psmd.Bootstrap
+		$tempDir = New-PSFTempDirectory -Name bootstrapdir -ModuleName Psmd.Bootstrap
+		Copy-Item -Path (Join-Path -Path $Path -ChildPath '*') -Destination $tempDir
+
+		# Write config file for bootstrap script
+		@{ RunFile = $StartScript } | Export-Clixml -Path "$tempDir\__Psmd_Bootstrap.clixml"
+
+		Compress-Archive -Path "$tempDir\*" -DestinationPath $tempFile -Force
 		$bytes = [System.IO.File]::ReadAllBytes($tempFile)
 		$encoded = [convert]::ToBase64String($bytes)
 		$bytes = $null
@@ -55,8 +66,11 @@
 		$bootstrapCode = [System.IO.File]::ReadAllText("$script:ModuleRoot\content\bootstrap.ps1")
 		$bootstrapCode = $bootstrapCode -replace '%data%', $encoded
 		$encoded = $null
-		Remove-PSFTempItem -Name bootstrapzip -ModuleName JEAnalyzer
+		Remove-PSFTempItem -Name bootstrapzip -ModuleName Psmd.Bootstrap
+		Remove-PSFTempItem -Name bootstrapdir -ModuleName Psmd.Bootstrap
+		#endregion Generate Bootstrap Payload
 
+		#region Export bootstrapped file
 		$outFile = Resolve-PSFPath -Path $OutPath -Provider FileSystem -SingleItem -NewChild
 		if (Test-Path -Path $OutPath) {
 			$item = Get-Item -Path $OutPath
@@ -69,5 +83,6 @@
 
 		$encoding = [System.Text.UTF8Encoding]::new($true)
 		[System.IO.File]::WriteAllText($outFile, $bootstrapCode, $encoding)
+		#endregion Export bootstrapped file
 	}
 }
