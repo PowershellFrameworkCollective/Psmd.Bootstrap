@@ -5,12 +5,12 @@
 	
 	.DESCRIPTION
 		Take all contents of a folder and embed them into a bootstrap scriptfile.
-		The targeted folder must contain a run.ps1 file for executing the bootstrap logic.
+		The targeted folder must contain a run.ps1 file for executing the bootstrap logic (unless you change that using the -StartScript parameter).
 
 		When executing the resulting file, it will:
 		- Create a temp folder
 		- Write all contents of the source folder into that temp folder
-		- Execute run.ps1 within that temp folder
+		- Execute the start script within that temp folder (in a child process, unless calling the resulting file with '-NoChildProcess')
 		- Remove the temp folder
 	
 	.PARAMETER Path
@@ -21,6 +21,10 @@
 		The path where to write the bootstrap scriptfile to.
 		Can be either a folder or the path to the ps1 file itself.
 		If a folder is specified, it will create a "bootstrap.ps1" file in that folder.
+
+	.PARAMETER StartScript
+		The script file in the root folder that should be run when executing the bootstrap-script resulting from this command.
+		Defaults to "run.ps1"
 	
 	.EXAMPLE
 		PS C:\> New-PsmdBootstrapScript -Path . -OutPath C:\temp
@@ -38,16 +42,27 @@
 		[Parameter(Mandatory = $true)]
 		[PsfValidateScript('PSFramework.Validate.FSPath.FileOrParent', ErrorString = 'PSFramework.Validate.FSPath.FileOrParent')]
 		[string]
-		$OutPath
+		$OutPath,
+
+		[PsfValidatePattern('\.ps1$', ErrorMessage = 'The Start Script must be a ps1 file!')]
+		[string]
+		$StartScript = 'run.ps1'
 	)
 	process {
-		$runFile = Join-Path -Path $Path -ChildPath 'run.ps1'
+		$runFile = Join-Path -Path $Path -ChildPath $StartScript
 		if (-not (Test-Path -Path $runFile)) {
-			Stop-PSFFunction -Message "Invalid package! No run.ps1 found in source folder $Path." -Target $Path -EnableException $true -Cmdlet $PSCmdlet -Category InvalidData
+			Stop-PSFFunction -Message "Invalid package! No $StartScript found in source folder $Path." -Target $Path -EnableException $true -Cmdlet $PSCmdlet -Category InvalidData
 		}
 
-		$tempFile = New-PSFTempFile -Name bootstrapzip -Extension zip -ModuleName JEAnalyzer
-		Compress-Archive -Path (Join-Path -Path $Path -ChildPath '*') -DestinationPath $tempFile -Force
+		#region Generate Bootstrap Payload
+		$tempFile = New-PSFTempFile -Name bootstrapzip -Extension zip -ModuleName Psmd.Bootstrap
+		$tempDir = New-PSFTempDirectory -Name bootstrapdir -ModuleName Psmd.Bootstrap
+		Copy-Item -Path (Join-Path -Path $Path -ChildPath '*') -Destination $tempDir
+
+		# Write config file for bootstrap script
+		@{ RunFile = $StartScript } | Export-Clixml -Path "$tempDir\__Psmd_Bootstrap.clixml"
+
+		Compress-Archive -Path "$tempDir\*" -DestinationPath $tempFile -Force
 		$bytes = [System.IO.File]::ReadAllBytes($tempFile)
 		$encoded = [convert]::ToBase64String($bytes)
 		$bytes = $null
@@ -55,8 +70,11 @@
 		$bootstrapCode = [System.IO.File]::ReadAllText("$script:ModuleRoot\content\bootstrap.ps1")
 		$bootstrapCode = $bootstrapCode -replace '%data%', $encoded
 		$encoded = $null
-		Remove-PSFTempItem -Name bootstrapzip -ModuleName JEAnalyzer
+		Remove-PSFTempItem -Name bootstrapzip -ModuleName Psmd.Bootstrap
+		Remove-PSFTempItem -Name bootstrapdir -ModuleName Psmd.Bootstrap
+		#endregion Generate Bootstrap Payload
 
+		#region Export bootstrapped file
 		$outFile = Resolve-PSFPath -Path $OutPath -Provider FileSystem -SingleItem -NewChild
 		if (Test-Path -Path $OutPath) {
 			$item = Get-Item -Path $OutPath
@@ -69,5 +87,6 @@
 
 		$encoding = [System.Text.UTF8Encoding]::new($true)
 		[System.IO.File]::WriteAllText($outFile, $bootstrapCode, $encoding)
+		#endregion Export bootstrapped file
 	}
 }

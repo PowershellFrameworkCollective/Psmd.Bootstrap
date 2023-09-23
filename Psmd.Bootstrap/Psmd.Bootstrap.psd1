@@ -4,7 +4,7 @@
 RootModule = 'Psmd.Bootstrap.psm1'
 
 # Version number of this module.
-ModuleVersion = '1.0.1'
+ModuleVersion = '1.0.3'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
@@ -91,19 +91,19 @@ PrivateData = @{
     PSData = @{
 
         # Tags applied to this module. These help with module discovery in online galleries.
-        # Tags = @()
+        Tags = @('powershell', 'script', 'packaging', 'bootstrap')
 
         # A URL to the license for this module.
-        # LicenseUri = ''
+        LicenseUri = 'https://github.com/PowershellFrameworkCollective/Psmd.Bootstrap/blob/master/LICENSE'
 
         # A URL to the main website for this project.
-        # ProjectUri = ''
+        ProjectUri = 'https://github.com/PowershellFrameworkCollective/Psmd.Bootstrap'
 
         # A URL to an icon representing this module.
         # IconUri = ''
 
         # ReleaseNotes of this module
-        # ReleaseNotes = ''
+        ReleaseNotes = 'https://github.com/PowershellFrameworkCollective/Psmd.Bootstrap/blob/master/Changelog.md'
 
         # Prerelease string of this module
         # Prerelease = ''
